@@ -35,10 +35,10 @@ public class RobotlegsMappingUtils
                 if (foundFunction != null)
                 {
                     //Find all the usages of "mapView" and return then as UsageInfo
-                    List<UsageInfo2UsageAdapter> mapViewUsages = FindUsagesUtils.findUsagesOfPsiElement(foundFunction, project);
+//                    List<UsageInfo2UsageAdapter> mapViewUsages = FindUsagesUtils.findUsagesOfPsiElement(foundFunction, project);
 
                     //Create a map of the first param (the "view") to the second param (the "mediator")
-                    fileToListOfMappings.addAll(getMappedElementsFromFunctionUsages(mapViewUsages));
+//                    fileToListOfMappings.addAll(getMappedElementsFromFunctionUsages(mapViewUsages));
                 }
             }
         }
@@ -47,7 +47,7 @@ public class RobotlegsMappingUtils
     }
 
 
-    private static Vector<UsageMapping> getMappedElementsFromFunctionUsages(List<UsageInfo2UsageAdapter> functionUsages)
+    public static Vector<UsageMapping> getMappedElementsFromFunctionUsages(List<UsageInfo2UsageAdapter> functionUsages)
     {
         Vector<UsageMapping> usageMappings = new Vector<UsageMapping>();
 
@@ -73,5 +73,4 @@ public class RobotlegsMappingUtils
         }
         return usageMappings;
     }
-
 }

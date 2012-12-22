@@ -230,30 +230,30 @@ public class ToggleToMappedClassAction extends AnAction
 
     private PsiElement findMappingFunctionContext(String functionName, JSElement jsElement, Project project)
     {
-        List<UsageInfo2UsageAdapter> usages = FindUsagesUtils.findUsagesOfPsiElement(jsElement, project);
-        for (UsageInfo2UsageAdapter usage : usages)
-        {
-            PsiElement element = usage.getElement();
-            PsiElement contextOneLevelUp = element.getContext();
-            if (contextOneLevelUp != null)
-            {
-                PsiElement contextTwoLevelsUp = contextOneLevelUp.getContext();
-                if (contextTwoLevelsUp != null)
-                {
-                    PsiElement[] children = contextTwoLevelsUp.getChildren();
-                    PsiElement psiElement = children[0].getLastChild();
-                    String text = null;
-                    if (psiElement != null)
-                    {
-                        text = psiElement.getText();
-                        if (text.equals(functionName))
-                        {
-                            return contextTwoLevelsUp;
-                        }
-                    }
-                }
-            }
-        }
+//        List<UsageInfo2UsageAdapter> usages = FindUsagesUtils.findUsagesOfPsiElement(jsElement, project);
+//        for (UsageInfo2UsageAdapter usage : usages)
+//        {
+//            PsiElement element = usage.getElement();
+//            PsiElement contextOneLevelUp = element.getContext();
+//            if (contextOneLevelUp != null)
+//            {
+//                PsiElement contextTwoLevelsUp = contextOneLevelUp.getContext();
+//                if (contextTwoLevelsUp != null)
+//                {
+//                    PsiElement[] children = contextTwoLevelsUp.getChildren();
+//                    PsiElement psiElement = children[0].getLastChild();
+//                    String text = null;
+//                    if (psiElement != null)
+//                    {
+//                        text = psiElement.getText();
+//                        if (text.equals(functionName))
+//                        {
+//                            return contextTwoLevelsUp;
+//                        }
+//                    }
+//                }
+//            }
+//        }
         return null;
     }
 

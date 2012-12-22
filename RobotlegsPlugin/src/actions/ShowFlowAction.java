@@ -138,7 +138,7 @@ public class ShowFlowAction extends AnAction
         FindUsagesManager findUsagesManager = ((FindManagerImpl) FindManager.getInstance(project)).getFindUsagesManager();
         FindUsagesHandler findUsagesHandler = findUsagesManager.getFindUsagesHandler(psiElement, false);
         FindUsagesOptions findUsagesOptions = findUsagesHandler.getFindUsagesOptions();
-        findUsagesManager.processUsages(findUsagesHandler, collect, findUsagesOptions);
+//        findUsagesManager.processUsages(findUsagesHandler, collect, findUsagesOptions);
         return usages;
     }
 

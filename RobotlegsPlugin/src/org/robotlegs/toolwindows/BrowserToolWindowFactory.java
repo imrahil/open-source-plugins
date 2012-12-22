@@ -2,9 +2,11 @@ package org.robotlegs.toolwindows;
 
 import com.intellij.lang.javascript.JavaScriptSupportLoader;
 import com.intellij.lang.javascript.psi.JSFile;
+import com.intellij.lang.javascript.psi.JSFunction;
 import com.intellij.lang.javascript.psi.ecmal4.JSClass;
 import com.intellij.lang.javascript.psi.impl.JSChangeUtil;
 import com.intellij.lang.javascript.psi.impl.JSPsiImplUtils;
+import com.intellij.lang.javascript.psi.resolve.JSResolveUtil;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.command.CommandProcessor;
@@ -20,6 +22,7 @@ import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiNamedElement;
+import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentFactory;
@@ -28,6 +31,7 @@ import com.intellij.ui.table.JBTable;
 import com.intellij.usages.UsageInfo2UsageAdapter;
 import com.intellij.util.ui.ColumnInfo;
 import com.intellij.util.ui.SortableColumnModel;
+import utils.FindUsagesUtils;
 import utils.RobotlegsMappingUtils;
 
 import javax.swing.*;
@@ -35,6 +39,8 @@ import javax.swing.table.AbstractTableModel;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Vector;
 
 /**
@@ -74,8 +80,8 @@ public class BrowserToolWindowFactory implements ToolWindowFactory
 
     private String[] mediatorFunctions = new String[]{MAP_VIEW};
     private String[] commandFunctions = new String[]{MAP_EVENT};
-    private String[] injectorFunctions = new String[]{MAP_SINGLETON, MAP_SINGLETON_OF, MAP_VALUE, MAP_RULE, MAP_CLASS};
     private String[] signalFunctions = new String[]{MAP_SIGNAL_CLASS};
+    private String[] injectorFunctions = new String[]{MAP_SINGLETON, MAP_SINGLETON_OF, MAP_VALUE, MAP_RULE, MAP_CLASS};
 
     private UsagesRequestValues mediatorMapValues = new UsagesRequestValues(MEDIATOR_MAP, MEDIATOR_MAP_NAME, mediatorFunctions);
     private UsagesRequestValues commandMapValues = new UsagesRequestValues(COMMAND_MAP, COMMAND_MAP_NAME, commandFunctions);
@@ -85,6 +91,8 @@ public class BrowserToolWindowFactory implements ToolWindowFactory
     private UsagesRequestValues[] values = new UsagesRequestValues[]{mediatorMapValues, commandMapValues, signalCommandMapValues, injectorValues};
     private ContentManager contentManager;
 
+    final Vector<JBTable> tables = new Vector<JBTable>();
+
     public void createToolWindowContent(Project project, ToolWindow toolWindow)
     {
         this.project = project;
@@ -93,18 +101,56 @@ public class BrowserToolWindowFactory implements ToolWindowFactory
         refreshValues();
     }
 
+    private Runnable createRunnable(final List<UsageInfo2UsageAdapter> usages, final String tabName)
+    {
+        Runnable aRunnable = new Runnable(){
+            public void run(){
+                ApplicationManager.getApplication().invokeLater(new Runnable() {
+                    public void run() {
+                        synchronized (usages)
+                        {
+                            //Create a map of the first param (the "view") to the second param (the "mediator")
+                            Vector<UsageMapping> vectorUsages = RobotlegsMappingUtils.getMappedElementsFromFunctionUsages(usages);
+                            createTable(project, contentManager, vectorUsages, tabName);
+                        }
+                    }
+                });
+            }
+        };
+
+        return aRunnable;
+    }
+
     private void refreshValues()
     {
-        contentManager.removeAllContents(true);
+//        contentManager.removeAllContents(true);
 
         for (UsagesRequestValues value : values)
         {
-            Vector<UsageMapping> usageMappings = RobotlegsMappingUtils.getMappingByClassAndFunctionProject(project, value.getClassQName(), value.getFunctions());
-            Content content = createTable(project, contentManager, usageMappings, value.getTabName());
+            List<UsageInfo2UsageAdapter> usages = new ArrayList<UsageInfo2UsageAdapter>();
+
+            Runnable runner = createRunnable(usages, value.getTabName());
+
+            JSClass jsClass = (JSClass) JSResolveUtil.findClassByQName(value.getClassQName(), GlobalSearchScope.allScope(project));
+
+            if (jsClass != null)
+            {
+                for (String functionName : value.getFunctions())
+                {
+                    //Find the "mapView" function on IMediatorMap so we can find where it's used throughout the app
+                    JSFunction foundFunction = jsClass.findFunctionByName(functionName);
+
+                    if (foundFunction != null)
+                    {
+                        //Find all the usages of "mapView" and return then as UsageInfo
+                        FindUsagesUtils.findUsagesOfPsiElement(foundFunction, project, usages, runner);
+                    }
+                }
+            }
         }
     }
 
-    private Content createTable(Project project, ContentManager contentManager, Vector<UsageMapping> usageMappings, String tableName)
+    private void createTable(Project project, ContentManager contentManager, Vector<UsageMapping> usageMappings, String tableName)
     {
         final Vector<Vector> names = new Vector<Vector>();
         final Vector<Vector> dataRows = new Vector<Vector>();
@@ -113,8 +159,26 @@ public class BrowserToolWindowFactory implements ToolWindowFactory
 
         if (names.size() > 0)
         {
+            final JBTable table;
+            JBTable findTable = findTable(tableName);
+
             AbstractTableModel tableModel = new MappingsTableModel(names);
-            final JBTable table = new JBTable(tableModel);
+
+            if (findTable != null)
+            {
+                table = findTable;
+                table.setModel(tableModel);
+
+                return;
+            }
+            else
+            {
+                table = new JBTable(tableModel);
+                table.setName(tableName);
+
+                tables.add(table);
+            }
+
             table.setCellSelectionEnabled(true);
             table.setAutoCreateRowSorter(true);
 
@@ -140,8 +204,17 @@ public class BrowserToolWindowFactory implements ToolWindowFactory
 
             table.addMouseListener(new MyMouseAdapter(table, dataRows, project));
             table.setEnableAntialiasing(true);
+        }
+    }
 
-            return content;
+    private JBTable findTable(String tableName)
+    {
+        for (JBTable table : tables)
+        {
+            if (table.getName() == tableName)
+            {
+                return table;
+            }
         }
 
         return null;
@@ -167,7 +240,10 @@ public class BrowserToolWindowFactory implements ToolWindowFactory
                 }
                 else
                 {
-                    column.add(mapping.getText());
+                    if (mapping != null)
+                    {
+                        column.add(mapping.getText());
+                    }
                 }
                 dataColumn.add(mapping);
             }
